@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meus contatos</title>
+  <!-- Tailwind via CDN: sem instalar nada -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="min-h-screen bg-slate-100 p-6 text-slate-800">
+  <main class="mx-auto max-w-xl">
+
+    <h1 class="text-3xl font-bold">Meus contatos</h1>
+    <p id="contador" class="mb-6 text-slate-500"></p>
+
+    <!-- FORMULÁRIO: serve para criar e para editar -->
+    <form id="form" class="flex flex-col gap-2 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:flex-row">
+      <input id="nome" required placeholder="Nome"
+        class="flex-1 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" />
+      <input id="telefone" required placeholder="Telefone"
+        class="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 sm:w-40" />
+      <button id="btn"
+        class="rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white transition hover:bg-indigo-700">
+        Salvar
+      </button>
+    </form>
+
+    <!-- LISTA: o JavaScript preenche -->
+    <ul id="lista" class="mt-6 space-y-3"></ul>
+    <p id="vazio" class="mt-6 hidden rounded-2xl border-2 border-dashed border-slate-300 p-8 text-center text-slate-500">
+      Nenhum contato ainda. Preencha o formulário acima.
+    </p>
+  </main>
+
+  <script>
+    // 1) PERSISTÊNCIA: ler o que já estava salvo (ou começar vazio)
+    let itens = JSON.parse(localStorage.getItem("contatos")) || [];
+    let editandoId = null; // null = criando | número = editando aquele id
+
+    const $ = (id) => document.getElementById(id);
+
+    // 2) PERSISTÊNCIA: guardar no navegador (só aceita texto, por isso o stringify)
+    const salvar = () => localStorage.setItem("contatos", JSON.stringify(itens));
+
+    // Segurança: evita que o texto digitado vire HTML
+    const esc = (t) => t.replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    // 3) READ: desenha a lista a partir do array
+    function mostrar() {
+      $("contador").textContent = itens.length === 1 ? "1 contato" : `${itens.length} contatos`;
+      $("vazio").classList.toggle("hidden", itens.length > 0);
+
+      $("lista").innerHTML = itens.map((i) => `
+        <li class="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+          <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-lg font-bold text-indigo-700">
+            ${esc(i.nome[0].toUpperCase())}
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="truncate font-semibold">${esc(i.nome)}</p>
+            <p class="truncate text-sm text-slate-500">${esc(i.telefone)}</p>
+          </div>
+          <button data-acao="editar" data-id="${i.id}"
+            class="rounded-lg px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50">Editar</button>
+          <button data-acao="remover" data-id="${i.id}"
+            class="rounded-lg px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50">Excluir</button>
+        </li>`).join("");
+    }
+
+    // 4) CREATE e UPDATE
+    $("form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const dados = { nome: $("nome").value.trim(), telefone: $("telefone").value.trim() };
+
+      if (editandoId === null) {
+        itens.push({ id: Date.now(), ...dados });                                   // CREATE
+      } else {
+        itens = itens.map((i) => (i.id === editandoId ? { ...i, ...dados } : i));   // UPDATE
+      }
+
+      editandoId = null;
+      $("form").reset();
+      $("btn").textContent = "Salvar";
+      salvar();
+      mostrar();
+    });
+
+    // 5) Botões Editar e Excluir (um único "ouvinte" na lista inteira)
+    $("lista").addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      const id = Number(b.dataset.id);
+
+      if (b.dataset.acao === "remover") {                                           // DELETE
+        if (!confirm("Excluir este contato?")) return;
+        itens = itens.filter((i) => i.id !== id);
+        salvar();
+        mostrar();
+      }
+
+      if (b.dataset.acao === "editar") {
+        const i = itens.find((i) => i.id === id);
+        $("nome").value = i.nome;
+        $("telefone").value = i.telefone;
+        editandoId = id;
+        $("btn").textContent = "Atualizar";
+        $("nome").focus();
+      }
+    });
+
+    // 6) Mostrar o que já estava salvo ao abrir a página
+    mostrar();
+  </script>
+</body>
+</html>
